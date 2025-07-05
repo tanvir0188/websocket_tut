@@ -1,50 +1,70 @@
-<!-- chat/templates/chat/room.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8"/>
     <title>Chat Room</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <textarea id="chat-log" cols="100" rows="20"></textarea><br>
     <input id="chat-message-input" type="text" size="100"><br>
     <input id="chat-message-submit" type="button" value="Send">
-    {{ room_name|json_script:"room-name" }}
     <script>
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const room_pk = {{ room.pk }};
+        const request_id = "{{ request.session.session_key }}";
+        const wsURL = "ws://" + window.location.host + "/ws/chat/"
+        const chatSocket = new WebSocket(wsURL);
 
-        const chatSocket = new WebSocket(
-            'ws://'
-            + window.location.host
-            + '/ws/chat/'
-            + roomName
-            + '/'
-        );
+        chatSocket.onopen = function(){
+            chatSocket.send(JSON.stringify({
+                pk: room_pk,
+                action: "join_room",
+                request_id: request_id
+            }));
+            chatSocket.send(JSON.stringify({
+                pk: room_pk,
+                action: "retrieve",
+                request_id: request_id
+            }));
+        };
 
-        chatSocket.onmessage = function(e) {
+        chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
-            document.querySelector('#chat-log').value += (data.message + '\n');
+            switch (data.action) {
+                case "retrieve":
+                    data.data.messages.forEach(msg => {
+                        document.querySelector('#chat-log').value += (msg.text + '\n');
+                    });
+                    break;
+                case "create":
+                    document.querySelector('#chat-log').value += (data.data.text + '\n');
+                    break;
+                default:
+                    break;
+            }
         };
 
         chatSocket.onclose = function(e) {
             console.error('Chat socket closed unexpectedly');
         };
 
-        document.querySelector('#chat-message-input').focus();
-        document.querySelector('#chat-message-input').onkeyup = function(e) {
-            if (e.key === 'Enter') {  // enter, return
-                document.querySelector('#chat-message-submit').click();
+        $('#chat-message-input').focus();
+        $('#chat-message-input').on('keyup', function(e){
+            if (e.keyCode === 13) {
+                $('#chat-message-submit').click();
             }
-        };
+        });
 
-        document.querySelector('#chat-message-submit').onclick = function(e) {
-            const messageInputDom = document.querySelector('#chat-message-input');
-            const message = messageInputDom.value;
+        $('#chat-message-submit').on('click', function(e){
+            const message = $('#chat-message-input').val();
             chatSocket.send(JSON.stringify({
-                'message': message
+                message: message,
+                room: room_pk,
+                action: "create_message",
+                request_id: request_id
             }));
-            messageInputDom.value = '';
-        };
+            $('#chat-message-input').val('') ;
+        });
     </script>
 </body>
 </html>

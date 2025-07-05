@@ -196,3 +196,4 @@ class RoomConsumer(CreateModelMixin, ObserverModelInstanceMixin, GenericAsyncAPI
         await self.unsubscribe_instance(pk=room.pk)
         await self.message_activity.unsubscribe(room=room.pk)
         await self.remove_user_from_room(room)
+
