@@ -197,6 +197,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Check if room exists and user has access to it"""
         try:
             room = Room.objects.get(pk=self.room_id)
+            
             # Check if user is in the room or is the creator
             return (self.user in room.current_users.all() or 
                    room.creator == self.user)
@@ -250,6 +251,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     """Consumer for user-specific notifications"""
+    
     
     async def connect(self):
         self.user = self.scope['user']

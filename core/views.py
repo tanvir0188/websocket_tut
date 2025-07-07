@@ -43,12 +43,27 @@ def get_users(request):
         'users':serialize.data
     })
 
+
+@extend_schema(
+        request=RoomSerializer, 
+        responses=RoomSerializer,
+        examples=[
+            OpenApiExample(
+                name="Create a new room",
+                value={                    
+                    "name": "room",                                                                                
+                    "is_private": True,
+                    "is_group": False,
+                }
+            )
+        ]
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_room(request):
     # Use DRF's built-in request.data
     data = request.data.copy()
-    data['creator'] = request.user.id  # pass user id to serializer
+    data['creator'] = request.user  # pass user id to serializer
 
     serializer = RoomSerializer(data=data)
     if serializer.is_valid():
@@ -123,14 +138,30 @@ def add_user_to_room(request, pk):
             'status': 'unauthorized'
         }, status=403)
 
-    
+    # Count current users
+    current_user_count = room.current_users.count()
+
+    # Filter users to add (to avoid invalid IDs)
     users_to_add = User.objects.filter(pk__in=user_ids)
+
+    # Calculate total if we add these new users (exclude duplicates)
+    new_unique_users_count = users_to_add.exclude(pk__in=room.current_users.values_list('pk', flat=True)).count()
+    total_after_add = current_user_count + new_unique_users_count
+
+    if room.is_private and not room.is_group and total_after_add > 2:
+        return Response({
+            'message': 'Private one-to-one room cannot have more than 2 users.',
+            'status': 'error'
+        }, status=400)
+
+    # Add users only after validation passed
     room.current_users.add(*users_to_add)
 
     return Response({
         'message': f"Added users {', '.join([u.username for u in users_to_add])} to the room",
         'status': 'success'
     }, status=200)
+
 @extend_schema(
     request=RoomSerializer,
     responses=RoomSerializer,

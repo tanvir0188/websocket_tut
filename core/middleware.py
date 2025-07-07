@@ -17,10 +17,7 @@ def get_user(token):
         return AnonymousUser()
 
 class JWTAuthMiddleware(BaseMiddleware):
-    """
-    Custom middleware that authenticates user with JWT token passed
-    in query string as ?token=<...>
-    """
+    
     async def __call__(self, scope, receive, send):
         query_string = scope['query_string'].decode()
         query_params = parse_qs(query_string)

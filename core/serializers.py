@@ -4,7 +4,19 @@ from rest_framework import serializers
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','email', 'username']
+        fields = ['id', 'email', 'username', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if request and request.method == 'GET':
+            fields.pop('password', None)
+        return fields
+    
+    
 
         
 class AddUserSerializer(serializers.Serializer):
@@ -41,8 +53,13 @@ class MessageSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     messages = MessageSerializer(many=True, read_only=True)
-    current_users = UserSerializer(many =True, read_only=True)
-    creator = UserSerializer(many=False)
+    current_users = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.objects.all(),
+        required=False
+    )
+
+    creator = UserSerializer(read_only=True)
     class Meta:
         model = Room
         fields = [
